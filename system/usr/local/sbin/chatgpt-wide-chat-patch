@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+import mmap
+import os
+import sys
+from pathlib import Path
+
+archive = Path(sys.argv[1] if len(sys.argv) > 1 else "/usr/lib/chatgpt/resources/app.asar")
+suffix = b";--composer-adjacent-max-width:"
+target = b"--thread-content-max-width:56rem" + suffix
+sources = [
+    b"--thread-content-max-width:48rem" + suffix,
+    b"--thread-content-max-width:64rem" + suffix,
+]
+
+if any(len(source) != len(target) for source in sources):
+    raise SystemExit("internal error: replacement must preserve archive size")
+if not archive.is_file():
+    raise SystemExit(f"ChatGPT archive not found: {archive}")
+
+with archive.open("r+b") as handle:
+    with mmap.mmap(handle.fileno(), 0) as data:
+        target_at = data.find(target)
+        found = [(source, data.find(source)) for source in sources]
+        found = [(source, offset) for source, offset in found if offset >= 0]
+        if target_at >= 0 and not found:
+            print("ChatGPT conversation width is already set to 56rem")
+            raise SystemExit(0)
+        if len(found) != 1:
+            print("ChatGPT layout signature changed; width patch was not applied", file=sys.stderr)
+            raise SystemExit(0)
+        source, offset = found[0]
+        if data.find(source, offset + 1) >= 0:
+            raise SystemExit("Multiple ChatGPT layout signatures found; refusing ambiguous patch")
+        data[offset:offset + len(source)] = target
+        data.flush()
+    os.fsync(handle.fileno())
+
+print("Set ChatGPT conversation width to 56rem")

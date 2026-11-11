@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Patch a T3 Code app.asar so the startup "provider status has not been checked
+in this session yet" placeholder never shows as a banner.
+
+The server publishes that placeholder with status "warning" before the real
+provider check finishes, and the web UI shows a banner for any non-ready status.
+"""
+import hashlib
+import json
+import re
+import struct
+import sys
+
+ASSET_PREFIX = "apps/server/dist/client/assets/"
+# Inside the banner-visibility check: `e.status===`ready`||e.driver===`antigravity`...`
+VISIBILITY_CHECK = re.compile(rb"(\w+)\.status===`ready`\|\|\1\.driver===`antigravity`")
+PLACEHOLDER_TEST = rb"/has not been checked in this session yet\./.test(\1.message)||"
+INTEGRITY_BLOCK_SIZE = 4 * 1024 * 1024
+
+
+def read_asar(path):
+    with open(path, "rb") as f:
+        raw = f.read()
+    header_pickle_size = struct.unpack_from("<I", raw, 4)[0]
+    json_size = struct.unpack_from("<I", raw, 12)[0]
+    header = json.loads(raw[16:16 + json_size])
+    return header, raw[8 + header_pickle_size:]
+
+
+def write_asar(path, header, files_in_order):
+    header_json = json.dumps(header, separators=(",", ":"), ensure_ascii=False).encode()
+    padding = b"\0" * (-len(header_json) % 4)
+    header_pickle = struct.pack("<II", 4 + len(header_json) + len(padding), len(header_json)) + header_json + padding
+    with open(path, "wb") as f:
+        f.write(struct.pack("<II", 4, len(header_pickle)))
+        f.write(header_pickle)
+        for content in files_in_order:
+            f.write(content)
+
+
+def packed_files(node, prefix=""):
+    for name, entry in node["files"].items():
+        path = prefix + name
+        if "files" in entry:
+            yield from packed_files(entry, path + "/")
+        elif "offset" in entry and not entry.get("unpacked"):
+            yield path, entry
+
+
+def integrity_for(content):
+    blocks = [
+        hashlib.sha256(content[i:i + INTEGRITY_BLOCK_SIZE]).hexdigest()
+        for i in range(0, max(len(content), 1), INTEGRITY_BLOCK_SIZE)
+    ]
+    return {
+        "algorithm": "SHA256",
+        "hash": hashlib.sha256(content).hexdigest(),
+        "blockSize": INTEGRITY_BLOCK_SIZE,
+        "blocks": blocks,
+    }
+
+
+def main(asar_path):
+    header, data = read_asar(asar_path)
+    entries = sorted(packed_files(header), key=lambda item: int(item[1]["offset"]))
+
+    patched_count = 0
+    contents = []
+    offset = 0
+    for path, entry in entries:
+        start = int(entry["offset"])
+        content = data[start:start + entry["size"]]
+        if path.startswith(ASSET_PREFIX) and path.endswith(".js"):
+            content, matches = VISIBILITY_CHECK.subn(lambda m: m.expand(PLACEHOLDER_TEST) + m.group(0), content)
+            if matches:
+                patched_count += matches
+                entry["size"] = len(content)
+                if "integrity" in entry:
+                    entry["integrity"] = integrity_for(content)
+        entry["offset"] = str(offset)
+        offset += len(content)
+        contents.append(content)
+
+    if patched_count != 1:
+        sys.exit(f"expected exactly one banner visibility check, found {patched_count}; T3 Code changed, patch not applied")
+    write_asar(asar_path, header, contents)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1])

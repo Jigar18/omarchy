@@ -1,0 +1,6 @@
+firefox-beta-bin
+intellij-idea-ultimate-edition
+ngrok
+pgadmin4-desktop-bin
+pgadmin4-server-bin
+wps-office

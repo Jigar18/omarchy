@@ -1,0 +1,14 @@
+#!/bin/bash
+# Keeps ~/.claude/.credentials.json fresh for the Omarchy usage panel.
+# Terminals and T3 Code use the long-lived CLAUDE_CODE_OAUTH_TOKEN instead, so this
+# timer is the only thing that refreshes the saved login and nothing races it.
+set -euo pipefail
+creds=~/.claude/.credentials.json
+[[ -s $creds ]] || exit 0
+
+seconds_left=$(python3 -I -c 'import json,sys,time; print(int(json.load(open(sys.argv[1]))["claudeAiOauth"].get("expiresAt",0)/1000 - time.time()))' "$creds")
+(( seconds_left > 900 )) && exit 0
+
+# `claude auth status` refreshes an expiring token as a side effect
+exec flock -n ~/.claude/.refresh-saved-login.lock \
+  env -u CLAUDE_CODE_OAUTH_TOKEN ~/.local/bin/claude auth status >/dev/null

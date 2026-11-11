@@ -1,0 +1,52 @@
+#!/usr/bin/bash
+# Run the internal display at 60Hz on battery and 120Hz on AC power.
+# Re-applies on every power change, and after Hyprland reloads its config or
+# re-adds the monitor, since both reset the panel to its preferred 120Hz mode.
+
+set -u
+
+readonly DISPLAY_NAME="eDP-1"
+readonly BATTERY_HZ=60
+readonly AC_HZ=120
+
+on_ac_power() {
+  local supply
+  for supply in /sys/class/power_supply/*; do
+    case $(<"$supply/type") in
+      Mains|USB)
+        [[ $(<"$supply/online") == 1 ]] && return 0
+        ;;
+    esac
+  done
+  return 1
+}
+
+apply_refresh_rate() {
+  local target state width height refresh x y scale
+  if on_ac_power; then target=$AC_HZ; else target=$BATTERY_HZ; fi
+
+  state=$(hyprctl monitors -j | jq -r --arg name "$DISPLAY_NAME" \
+    '.[] | select(.name == $name) | "\(.width) \(.height) \(.refreshRate | round) \(.x) \(.y) \(.scale)"')
+  [[ -n $state ]] || return 0  # lid closed or display disabled
+
+  read -r width height refresh x y scale <<<"$state"
+  (( refresh == target )) && return 0
+
+  hyprctl eval "hl.monitor({ output = \"$DISPLAY_NAME\", mode = \"${width}x${height}@${target}\", position = \"${x}x${y}\", scale = $scale })" >/dev/null
+  echo "$DISPLAY_NAME: ${refresh}Hz -> ${target}Hz"
+}
+
+hyprland_socket="$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock"
+
+apply_refresh_rate
+
+{
+  upower --monitor &
+  socat -u "UNIX-CONNECT:$hyprland_socket" - | grep --line-buffered -E '^(configreloaded|monitoradded)' &
+  wait
+} | while IFS= read -r _; do
+  apply_refresh_rate
+done
+
+# Either event source exiting means something is wrong; let systemd restart us.
+exit 1

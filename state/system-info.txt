@@ -1,0 +1,8 @@
+omarchy_version=4.5.0-3
+theme=Last Horizon
+font=JetBrainsMono Nerd Font
+kernel=7.2.15-1-omarchy
+hostname=archlinux
+machine=ASUSTeK COMPUTER INC. ASUS Vivobook S 16 S5606MA_S5606MA 
+omarchy_channel=https://pkgs.omarchy.org/rc/$arch
+rainynight_theme_repo=https://github.com/atif-1402/omarchy-rainynight-theme.git

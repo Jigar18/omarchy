@@ -1,0 +1,149 @@
+#!/usr/bin/bash
+
+set -u
+
+readonly INTERNAL_DISPLAY="eDP-1"
+readonly NATIVE_RESOLUTION="3200x2000"
+readonly DISPLAY_POSITION="0x0"
+readonly DISPLAY_SCALE="1.25"
+
+run_once=0
+dry_run=0
+last_power_profile=""
+
+for argument in "$@"; do
+  case "$argument" in
+    --once)
+      run_once=1
+      ;;
+    --dry-run)
+      dry_run=1
+      ;;
+    *)
+      printf 'Unknown argument: %s\n' "$argument" >&2
+      exit 2
+      ;;
+  esac
+done
+
+detect_profile() {
+  case "${OMARCHY_POWER_PROFILE_FORCE:-}" in
+    ac|battery)
+      printf '%s\n' "$OMARCHY_POWER_PROFILE_FORCE"
+      return
+      ;;
+  esac
+
+  if omarchy power present; then
+    printf 'ac\n'
+  else
+    printf 'battery\n'
+  fi
+}
+
+current_theme_slug() {
+  local theme_file="$HOME/.local/state/omarchy/current/theme.name"
+
+  if [[ -r $theme_file ]]; then
+    head -n 1 "$theme_file"
+  fi
+}
+
+display_matches() {
+  local desired_refresh="$1"
+  local display_state
+
+  display_state=$(hyprctl monitors all -j | jq -r --arg display "$INTERNAL_DISPLAY" '
+    .[] | select(.name == $display) | "\(.width)x\(.height) \(.refreshRate | floor)"
+  ')
+
+  [[ $display_state == "$NATIVE_RESOLUTION $desired_refresh" ]]
+}
+
+set_display_mode() {
+  local refresh="$1"
+  local lua
+
+  DISPLAY_CHANGED=0
+
+  if display_matches "$refresh"; then
+    return
+  fi
+
+  printf -v lua \
+    'hl.monitor({ output = "%s", mode = "%s@%s", position = "%s", scale = %s })' \
+    "$INTERNAL_DISPLAY" "$NATIVE_RESOLUTION" "$refresh" "$DISPLAY_POSITION" "$DISPLAY_SCALE"
+
+  hyprctl eval "$lua" >/dev/null
+  DISPLAY_CHANGED=1
+}
+
+apply_profile() {
+  local profile theme_name theme_slug refresh current_theme
+  local profile_changed=0
+  local failed=0
+
+  profile=$(detect_profile)
+
+  if [[ $profile != "$last_power_profile" ]]; then
+    profile_changed=1
+  fi
+
+  if [[ $profile == "ac" ]]; then
+    theme_name="Flexoki Light"
+    theme_slug="flexoki-light"
+    refresh="120"
+  else
+    theme_name="Last Horizon"
+    theme_slug="last-horizon"
+    refresh="60"
+  fi
+
+  if (( dry_run )); then
+    printf 'profile=%s theme=%s display=%s@%sHz scale=%s\n' \
+      "$profile" "$theme_name" "$NATIVE_RESOLUTION" "$refresh" "$DISPLAY_SCALE"
+    return
+  fi
+
+  if (( profile_changed )); then
+    current_theme=$(current_theme_slug)
+    if [[ $current_theme != "$theme_slug" ]]; then
+      printf 'Power profile: %s, applying theme %s\n' "$profile" "$theme_name"
+      if ! omarchy theme set "$theme_name"; then
+        failed=1
+      fi
+    fi
+  fi
+
+  if ! set_display_mode "$refresh"; then
+    printf 'Could not set %s to %s@%sHz\n' \
+      "$INTERNAL_DISPLAY" "$NATIVE_RESOLUTION" "$refresh" >&2
+    failed=1
+  fi
+
+  if (( failed )); then
+    return 1
+  fi
+
+  if (( profile_changed )); then
+    printf 'Power profile active: %s, %s, %s@%sHz\n' \
+      "$profile" "$theme_name" "$NATIVE_RESOLUTION" "$refresh"
+    last_power_profile="$profile"
+  elif (( DISPLAY_CHANGED )); then
+    printf 'Display profile corrected: %s, %s@%sHz\n' \
+      "$profile" "$NATIVE_RESOLUTION" "$refresh"
+  fi
+}
+
+apply_profile || exit 1
+
+if (( run_once )); then
+  exit 0
+fi
+
+while IFS= read -r _; do
+  apply_profile || exit 1
+done < <(upower --monitor)
+
+# Restart the service if the UPower monitor exits unexpectedly.
+exit 1

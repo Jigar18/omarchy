@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "jigark0.ram",
+  "name": "RAM usage",
+  "version": "1.0.0",
+  "author": "jigark0",
+  "license": "MIT",
+  "description": "Compact live RAM usage for the Omarchy bar.",
+  "kinds": ["bar-widget"],
+  "activation": "on-demand",
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "RAM usage",
+    "description": "Shows currently used memory in gigabytes.",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

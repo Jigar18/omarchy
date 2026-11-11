@@ -1,0 +1,232 @@
+/*
+ * Custom styles for Claude Desktop, injected into claude.ai pages at load time
+ * by the claude-desktop-tweaks pacman hook. Edit freely; changes apply as soon as the file is saved.
+ */
+
+/*
+ * Inline code: warm taupe-orange instead of the red/orange "danger" color (code blocks are untouched).
+ * The text color is the taupe-orange mixed with the surrounding text color, so it automatically turns
+ * darker on light backgrounds and lighter on dark ones; the chip is a faint warm tint.
+ * Tweak --code-accent to change the hue.
+ */
+code:not(pre code) {
+  --code-accent: oklch(0.64 0.1 55);
+  --cds-prose-code-color: color-mix(in oklch, var(--code-accent) 55%, currentColor);
+  color: color-mix(in oklch, var(--code-accent) 55%, currentColor) !important;
+  background-color: color-mix(in oklch, var(--code-accent) 14%, transparent) !important;
+}
+
+/*
+ * No focus ring on the chat area. Clicking a message container focuses it, and pressing any key
+ * (e.g. Super) makes the browser draw a blue focus outline around it. Only non-interactive
+ * containers are affected; buttons, links and text inputs keep their keyboard-focus indicators.
+ */
+[tabindex]:not(input, textarea, select, button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="checkbox"], [role="switch"], [contenteditable="true"]):focus,
+[tabindex]:not(input, textarea, select, button, a, [role="button"], [role="link"], [role="menuitem"], [role="tab"], [role="checkbox"], [role="switch"], [contenteditable="true"]):focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/*
+ * Pure-dark theme (dark mode only; light mode is untouched). claude.ai builds every dark surface
+ * from one grey scale, so this remaps that scale to near-black while keeping the step between
+ * shades: the sidebar ends up pure black, the chat area a hair lighter (#0d0d0d), and the message
+ * box, cards and menus a little lighter again, so they stay visibly separate.
+ * --cds-gray-* feeds the new design system, --cds-hsl-gray-* and --bg-* the older one.
+ */
+[data-mode="dark"] {
+  --cds-gray-700: #2a2a2a !important;
+  --cds-gray-750: #202020 !important;
+  --cds-gray-800: #171717 !important;
+  --cds-gray-810: #151515 !important;
+  --cds-gray-820: #131313 !important;
+  --cds-gray-830: #111111 !important;
+  --cds-gray-840: #0f0f0f !important;
+  --cds-gray-850: #0d0d0d !important;
+  --cds-gray-860: #060606 !important;
+  --cds-gray-870: #000000 !important;
+  --cds-gray-880: #000000 !important;
+  --cds-gray-890: #000000 !important;
+  --cds-gray-900: #000000 !important;
+  --cds-hsl-gray-700: 0 0% 16.47% !important;
+  --cds-hsl-gray-750: 0 0% 12.55% !important;
+  --cds-hsl-gray-800: 0 0% 9.02% !important;
+  --cds-hsl-gray-810: 0 0% 8.24% !important;
+  --cds-hsl-gray-830: 0 0% 6.67% !important;
+  --cds-hsl-gray-840: 0 0% 5.88% !important;
+  --cds-hsl-gray-850: 0 0% 5.10% !important;
+  --cds-hsl-gray-860: 0 0% 2.35% !important;
+  --cds-hsl-gray-870: 0 0% 0.00% !important;
+  --cds-hsl-gray-890: 0 0% 0.00% !important;
+  --cds-hsl-gray-900: 0 0% 0.00% !important;
+  --bg-000: 0 0% 9.02% !important;
+  --bg-100: 0 0% 5.10% !important;
+  --bg-200: 0 0% 0.00% !important;
+  --bg-300: 0 0% 0.00% !important;
+  --bg-400: 0 0% 0.00% !important;
+  --bg-500: 0 0% 0.00% !important;
+}
+
+/*
+ * Since 4.4212 (data-color-version="v2", data-cds-fizzy-lake="color") the surfaces are set as fixed
+ * hex values rather than taken from the grey scale above, so they need overriding on their own.
+ * #static-composer and .cds-root redefine --cds-surface-1 locally, hence the extra selectors.
+ */
+html[data-mode="dark"],
+html[data-mode="dark"] :is(.cds-root, #static-composer) {
+  --background-color-page: #000000 !important;
+  --cds-surface-0: #000000 !important;
+  --cds-surface-1: #000000 !important;
+  --cds-surface-2: #171717 !important;
+  --cds-surface-3: #171717 !important;
+  --cds-surface-panel: #171717 !important;
+  --cds-surface-popover: #202020 !important;
+  --cds-bg-editor-canvas: #060606 !important;
+  --cds-fizzy-lake-color-sidebar: #0d0d0d !important;
+}
+html[data-mode="dark"] .dframe-sidebar {
+  --df-sidebar-bg: #0d0d0d !important;
+  --df-web-sidebar-bg: #0d0d0d !important;
+}
+
+/*
+ * Chat input box and your own message bubbles. Each is set both through the app's variable and
+ * directly on the element, so a rename of either one alone doesn't undo it.
+ */
+html[data-mode="dark"] [data-cds="ChatComposer"] > [class*="bg-surface"] {
+  background-color: #0e0e0e !important;
+}
+html[data-mode="dark"],
+html[data-mode="dark"] [data-cds="UserMessage"] {
+  --cds-bg-user-message: #1b1b1b !important;
+}
+html[data-mode="dark"] [data-cds="UserMessage"] > [class*="message-bubble"] {
+  background-color: #1b1b1b !important;
+}
+
+/* Last-resort fallbacks on plain page structure, in case the variables above are renamed. */
+html[data-mode="dark"] body {
+  background-color: #000000 !important;
+}
+html[data-mode="dark"] :is(.dframe-sidebar, body > div aside[class*="sidebar"]) {
+  background-color: #0d0d0d !important;
+}
+
+/*
+ * Hide the sidebar's scrollbar. The list still scrolls with the mouse wheel/touchpad; only the
+ * visible bar is gone. Scoped to sidebar containers so the chat keeps its scrollbar.
+ */
+nav, nav *,
+aside, aside *,
+[data-testid*="sidebar" i], [data-testid*="sidebar" i] *,
+[class*="sidebar" i], [class*="sidebar" i] * {
+  scrollbar-width: none !important;
+}
+
+/*
+ * "Worked for 3m 12s ›" fold on the Code tab, drawn together with claude-desktop-custom.js. Once a
+ * turn has finished, its tool calls, searches and in-between narration hide behind one toggle row
+ * and only the final answer shows, like Codex. The script tags each transcript row (or, when a
+ * finished turn is drawn as one row, each step block inside it, [data-item-key]) with data-cdt:
+ * "head" (first row of the work, holds the toggle), "work", "final" (first row/block of the answer),
+ * plus "-open" while unfolded; these rules do the hiding and draw the toggle.
+ *
+ * A hidden transcript row keeps its own (empty, zero-height) box and only its contents go: the
+ * page's virtual list skips rows that have no box at all when it measures them, keeps counting their
+ * old height, and then leaves blank gaps and jumps while scrolling.
+ */
+[data-testid="transcript-row"][data-cdt="work"] {
+  padding-block: 0 !important;
+  margin-block: 0 !important;
+  border-block-width: 0 !important;
+  min-height: 0 !important;
+}
+[data-testid="transcript-row"][data-cdt="work"] > *,
+[data-item-key][data-cdt="work"] {
+  display: none !important;
+}
+[data-cdt="head"] [data-epitaxy-entry] > :not(.cdt-fold) {
+  display: none !important;
+}
+.cdt-fold {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+[data-cdt="head-open"] .cdt-fold {
+  margin-bottom: var(--chat-item-gap, 12px) !important;
+}
+.cdt-fold-button {
+  appearance: none !important;
+  display: inline-flex !important;
+  flex: none !important;
+  align-items: center !important;
+  gap: 2px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 4px !important;
+  background: none !important;
+  outline: none !important;
+  font: inherit !important;
+  font-size: var(--text-body, 0.875rem) !important;
+  line-height: 1.25rem !important;
+  cursor: pointer !important;
+}
+.cdt-fold-button:hover,
+.cdt-fold-button:focus-visible {
+  color: var(--cds-text-secondary, currentColor) !important;
+}
+.cdt-fold-button:focus-visible {
+  outline: 2px solid var(--cds-border-stronger, currentColor) !important;
+  outline-offset: 2px !important;
+}
+.cdt-fold-button svg {
+  width: 14px !important;
+  height: 14px !important;
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 1.5 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+  transition: transform 150ms ease !important;
+}
+.cdt-fold[data-open] .cdt-fold-button svg {
+  transform: rotate(90deg) !important;
+}
+.cdt-fold-line,
+[data-cdt="final-open"] [data-epitaxy-entry]::before,
+[data-cdt="final-open"][data-item-key]::before {
+  height: 1px !important;
+  background: var(--cds-border, rgb(128 128 128 / 0.2)) !important;
+}
+.cdt-fold-line {
+  flex: 1 1 auto !important;
+}
+[data-cdt="final-open"] [data-epitaxy-entry]::before {
+  margin-bottom: var(--chat-item-gap, 12px) !important;
+}
+[data-cdt="final-open"] [data-epitaxy-entry]::before,
+[data-cdt="final-open"][data-item-key]::before {
+  content: "" !important;
+  display: block !important;
+}
+[data-cdt-probing] [role="toolbar"][aria-label="Message actions"] {
+  visibility: hidden !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .cdt-fold-button svg {
+    transition: none !important;
+  }
+}
+
+/*
+ * Chat column 5% wider at the "s" chat-width setting: the text area goes from 736px to ~773px
+ * (the column measure includes 1rem of inner padding on each side, hence 768px -> 805px).
+ * --chat-column-measure feeds the Code tab, --transcript-width the Chat tab.
+ */
+html[data-transcript-width="s"] {
+  --fizzy-lake-column: 805 !important;
+  --chat-column-measure: 805px !important;
+  --transcript-width: 50.3125rem !important;
+}

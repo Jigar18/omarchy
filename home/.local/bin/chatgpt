@@ -1,0 +1,4 @@
+#!/bin/sh
+
+# Scale the official ChatGPT Electron interface for this 3200x2000 display.
+exec /usr/bin/chatgpt --force-device-scale-factor=1.3 "$@"

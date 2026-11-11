@@ -1,0 +1,10 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = chatgpt-bin
+
+[Action]
+Description = Reapplying wide ChatGPT conversation layout...
+When = PostTransaction
+Exec = /usr/local/sbin/chatgpt-wide-chat-patch

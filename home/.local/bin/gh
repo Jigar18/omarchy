@@ -1,0 +1,10 @@
+#!/bin/bash
+# Resolve the real mise-installed gh directly; `mise x gh -- gh` re-resolved to this
+# wrapper (because ~/.local/bin precedes mise's install dir in PATH) and looped forever.
+export MISE_MINIMUM_RELEASE_AGE=0
+real="$(mise which gh 2>/dev/null)"
+if [ -z "$real" ]; then
+  mise use -g gh || exit 1
+  real="$(mise which gh)" || exit 1
+fi
+exec "$real" "$@"

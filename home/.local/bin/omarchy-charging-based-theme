@@ -1,0 +1,59 @@
+#!/usr/bin/bash
+
+set -u
+
+readonly TOGGLE_NAME="charging-based-theme"
+readonly SERVICE_NAME="omarchy-power-profile.service"
+
+enabled() {
+  omarchy toggle enabled "$TOGGLE_NAME"
+}
+
+show_status() {
+  if enabled; then
+    printf 'on\n'
+  else
+    printf 'off\n'
+  fi
+}
+
+enable_cbt() {
+  omarchy toggle "$TOGGLE_NAME" on
+  systemctl --user start "$SERVICE_NAME"
+  printf 'on\n'
+}
+
+disable_cbt() {
+  omarchy toggle "$TOGGLE_NAME" off
+  systemctl --user stop "$SERVICE_NAME"
+
+  # Remove the dynamic monitor rule and return to monitors.lua defaults.
+  if hyprctl instances >/dev/null 2>&1; then
+    hyprctl reload >/dev/null
+  fi
+
+  printf 'off\n'
+}
+
+case "${1:-toggle}" in
+  status)
+    show_status
+    ;;
+  on)
+    enable_cbt
+    ;;
+  off)
+    disable_cbt
+    ;;
+  toggle)
+    if enabled; then
+      disable_cbt
+    else
+      enable_cbt
+    fi
+    ;;
+  *)
+    printf 'Usage: %s [status|on|off|toggle]\n' "${0##*/}" >&2
+    exit 2
+    ;;
+esac

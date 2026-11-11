@@ -1,0 +1,6 @@
+[Unit]
+Description=Refresh the saved Claude Code login used by the usage panel
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/claude-refresh-saved-login

@@ -1,0 +1,37 @@
+#!/bin/bash
+# T3 Code's updater renames the AppImage on every release, so launch whichever is newest.
+# Launched from the app menu, so ~/.bashrc never runs; load the Claude token here too.
+if [[ -s ~/.claude/oauth-token ]]; then
+  export CLAUDE_CODE_OAUTH_TOKEN="$(< ~/.claude/oauth-token)"
+fi
+
+appimage="$(ls -t ~/Applications/T3-Code-*.AppImage | head -n1)"
+
+# Each new release is extracted once and patched with local UI tweaks (see t3code-patch-asar).
+patched_root=~/.t3/patched-app
+patched_app="$patched_root/$(basename "$appimage" .AppImage)"
+
+if [[ ! -x "$patched_app/AppRun" ]]; then
+  work_dir="$(mktemp -d)"
+  if (cd "$work_dir" && "$appimage" --appimage-extract >/dev/null) &&
+     ~/.local/bin/t3code-patch-asar "$work_dir/squashfs-root/resources/app.asar"; then
+    rm -rf "$patched_root"
+    mkdir -p "$patched_root"
+    mv "$work_dir/squashfs-root" "$patched_app"
+  fi
+  rm -rf "$work_dir"
+fi
+
+# The patched UI file keeps its hashed name, so the HTTP cache (which marks it immutable)
+# must be dropped once, while no T3 Code instance has it open.
+cache_marker="$patched_app/.http-cache-cleared"
+if [[ -d "$patched_app" && ! -e "$cache_marker" ]] && ! pgrep -x t3code | grep -qvx $$; then
+  rm -rf ~/.config/t3code/Cache ~/.config/t3code-v2/Cache
+  touch "$cache_marker"
+fi
+
+if [[ -x "$patched_app/AppRun" ]]; then
+  # APPIMAGE tells the auto-updater which file to replace.
+  APPIMAGE="$appimage" exec "$patched_app/AppRun" --no-sandbox "$@"
+fi
+exec "$appimage" --no-sandbox "$@"

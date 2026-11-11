@@ -1,0 +1,104 @@
+#!/bin/bash
+
+# Choose whether Chrome follows the Omarchy theme or keeps a manually chosen one.
+#
+#   chrome-theme unlock  Manual mode: remove Omarchy's color policy and keep it
+#                        removed across theme changes, updates, and reboots
+#   chrome-theme sync    Follow Omarchy again and apply the current theme color
+#   chrome-theme status  Show which mode is active
+#
+# Omarchy writes the color as a mandatory Chrome policy, and Chrome has no
+# user-overridable form of that policy. Manual mode enables a root systemd
+# path unit that deletes the policy file whenever Omarchy writes it.
+
+set -euo pipefail
+
+UNIT=chrome-theme-manual
+UNIT_DIR=/etc/systemd/system
+
+POLICY_FILES=(
+  /etc/opt/chrome/policies/managed/color.json
+  /etc/chromium/policies/managed/color.json
+)
+
+as_root() {
+  if [[ -t 0 ]]; then
+    sudo "$@"
+  else
+    pkexec "$@"
+  fi
+}
+
+refresh_chrome() {
+  if pgrep -x chrome >/dev/null && command -v google-chrome-stable >/dev/null; then
+    google-chrome-stable --refresh-platform-policy --no-startup-window &>/dev/null || true
+  fi
+  if pgrep -x chromium >/dev/null && command -v chromium >/dev/null; then
+    chromium --refresh-platform-policy --no-startup-window &>/dev/null || true
+  fi
+}
+
+install_units() {
+  local tmp path_lines="" f
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' RETURN
+
+  for f in "${POLICY_FILES[@]}"; do
+    path_lines+="PathExists=$f"$'\n'
+  done
+
+  cat >"$tmp/$UNIT.path" <<EOF
+[Unit]
+Description=Keep Chrome theme manual (remove Omarchy color policy)
+
+[Path]
+${path_lines}
+[Install]
+WantedBy=multi-user.target
+EOF
+
+  cat >"$tmp/$UNIT.service" <<EOF
+[Unit]
+Description=Remove Omarchy color policy so the Chrome theme stays manual
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/rm -f -- ${POLICY_FILES[*]}
+EOF
+
+  if ! cmp -s "$tmp/$UNIT.path" "$UNIT_DIR/$UNIT.path" 2>/dev/null ||
+    ! cmp -s "$tmp/$UNIT.service" "$UNIT_DIR/$UNIT.service" 2>/dev/null; then
+    as_root install -m 0644 -o root -g root "$tmp/$UNIT.path" "$tmp/$UNIT.service" "$UNIT_DIR/"
+    as_root systemctl daemon-reload
+  fi
+}
+
+case "${1:-}" in
+  unlock)
+    install_units
+    as_root systemctl enable --now "$UNIT.path"
+    as_root rm -f -- "${POLICY_FILES[@]}"
+    refresh_chrome
+    notify-send -a Chrome "Chrome theme: manual" "Omarchy theme changes won't touch Chrome. Run 'chrome-theme sync' to follow Omarchy again." 2>/dev/null || true
+    echo "Manual mode on. Chrome keeps your theme across reboots and Omarchy theme changes."
+    echo "Run 'chrome-theme sync' to follow Omarchy again."
+    ;;
+  sync)
+    if systemctl is-enabled --quiet "$UNIT.path" 2>/dev/null || systemctl is-active --quiet "$UNIT.path" 2>/dev/null; then
+      as_root systemctl disable --now "$UNIT.path"
+    fi
+    omarchy-theme-set-browser
+    echo "Chrome follows the Omarchy theme again."
+    ;;
+  status)
+    if systemctl is-enabled --quiet "$UNIT.path" 2>/dev/null; then
+      echo "manual"
+    else
+      echo "synced with Omarchy"
+    fi
+    ;;
+  *)
+    echo "Usage: chrome-theme unlock|sync|status" >&2
+    exit 1
+    ;;
+esac

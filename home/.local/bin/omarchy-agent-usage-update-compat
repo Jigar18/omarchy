@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Keep Omarchy's packaged usage collectors, but put the Codex 0.149
+# compatibility shim first in PATH for this collector run only.
+# OMARCHY_PATH points at a collector set that links the packaged collectors
+# and swaps in a Codex collector with a fixed RPC reader.
+# The Claude collector only reads the CLI's saved sign-in, which lasts about
+# eight hours and is renewed only when the CLI itself runs. Run it once when the
+# sign-in has lapsed so the panel keeps working without Claude Code open. The
+# clean environment keeps a Claude desktop session's own auth out of it.
+claude_credentials="$HOME/.claude/.credentials.json"
+if jq -e '.claudeAiOauth | .refreshToken != "" and .expiresAt < (now * 1000 + 300000)' "$claude_credentials" >/dev/null 2>&1; then
+  env -i HOME="$HOME" PATH="$PATH" timeout 30 "$HOME/.local/bin/claude" auth status >/dev/null 2>&1
+fi
+
+compat_bin="$HOME/.local/lib/omarchy-agent-usage-compat"
+compat_state="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy-agent-usage-compat"
+PATH="$compat_bin:$PATH" XDG_STATE_HOME="$compat_state" OMARCHY_PATH="$compat_bin/omarchy" \
+  exec /usr/share/omarchy/bin/omarchy-agent-usage-update "$@"

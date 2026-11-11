@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -euo pipefail
+
+action="${1:-cycle}"
+config="${XDG_CONFIG_HOME:-$HOME/.config}/vrgb/config.json"
+
+current=0
+if [[ -r "$config" ]]; then
+  current="$(jq -r '.percent // 0' "$config" 2>/dev/null || printf '0')"
+fi
+
+case "$action" in
+  up)
+    (( current < 34 )) && next=34 || { (( current < 67 )) && next=67 || next=100; }
+    ;;
+  down)
+    (( current > 67 )) && next=67 || { (( current > 34 )) && next=34 || next=0; }
+    ;;
+  cycle)
+    (( current == 0 )) && next=34 || { (( current < 67 )) && next=67 || { (( current < 100 )) && next=100 || next=0; }; }
+    ;;
+  off)
+    next=0
+    ;;
+  *)
+    echo "Usage: omarchy-keyboard-lamp <up|down|cycle|off>" >&2
+    exit 2
+    ;;
+esac
+
+vrgb brightness "$next"
+
+if command -v omarchy-osd >/dev/null 2>&1; then
+  omarchy-osd -i keyboard -p "$next"
+fi

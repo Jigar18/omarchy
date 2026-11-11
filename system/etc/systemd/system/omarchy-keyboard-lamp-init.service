@@ -1,0 +1,12 @@
+[Unit]
+Description=Initialize ASUS ITE5570 keyboard LampArray
+After=systemd-udev-trigger.service
+Before=display-manager.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/omarchy-keyboard-lamp-init
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+set -euo pipefail
+
+driver=/sys/bus/hid/drivers/hid-generic
+
+# The ITE5570 LampArray accepts reports only after one HID rebind on this model.
+for ((attempt = 0; attempt < 50; attempt++)); do
+  for device_path in /sys/bus/hid/devices/0018:0B05:19B6.*; do
+    [[ -e "$device_path" ]] || continue
+    [[ "$(basename "$(readlink -f "$device_path/driver")")" == hid-generic ]] || continue
+
+    device="$(basename "$device_path")"
+    printf '%s' "$device" > "$driver/unbind"
+    sleep 1
+    printf '%s' "$device" > "$driver/bind"
+    exit 0
+  done
+
+  sleep 0.2
+done
+
+echo "ITE5570 keyboard LampArray device was not found" >&2
+exit 1

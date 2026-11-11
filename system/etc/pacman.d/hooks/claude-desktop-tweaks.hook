@@ -1,0 +1,12 @@
+# Re-applies the custom CSS/JS loader after every claude-desktop install/upgrade.
+# See /usr/local/lib/claude-desktop-tweaks/ and ~/.config/claude-desktop-custom.{css,js}
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/lib/claude-desktop/resources/app.asar
+
+[Action]
+Description = Patching Claude Desktop to load custom CSS and JS...
+When = PostTransaction
+Exec = /usr/bin/python3 /usr/local/lib/claude-desktop-tweaks/patch-asar.py

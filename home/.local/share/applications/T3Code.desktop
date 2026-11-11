@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=T3 Code
+Comment=T3 Code desktop app
+Exec=/home/jigark0/.local/bin/t3code %U
+TryExec=/home/jigark0/.local/bin/t3code
+Icon=/home/jigark0/Applications/T3Code.png
+Terminal=false
+StartupWMClass=t3code
+Categories=Development;

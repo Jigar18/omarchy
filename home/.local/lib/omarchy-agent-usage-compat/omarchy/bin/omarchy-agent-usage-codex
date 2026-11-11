@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+# Runs Omarchy's packaged Codex collector with one fix: its rpc_request mixes
+# select() with a buffered readline(), so when Codex writes a notification and
+# the reply in one chunk the reply sits unseen in Python's buffer and the probe
+# times out ("Codex limits unavailable" / "account/read"). Read the raw fd here.
+import os
+import select
+import time
+from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
+
+_loader = SourceFileLoader("omarchy_agent_usage_codex", "/usr/share/omarchy/bin/omarchy-agent-usage-codex")
+upstream = module_from_spec(spec_from_loader(_loader.name, _loader))
+_loader.exec_module(upstream)
+
+
+def rpc_request(proc, request_id, method, params=None, timeout=8):
+  payload = {"id": request_id, "method": method, "params": params or {}}
+  proc.stdin.write(upstream.json.dumps(payload) + "\n")
+  proc.stdin.flush()
+  fd = proc.stdout.fileno()
+  buf = getattr(proc, "_rpc_buf", b"")
+  deadline = time.time() + timeout
+  try:
+    while True:
+      while b"\n" in buf:
+        line, buf = buf.split(b"\n", 1)
+        try:
+          message = upstream.json.loads(line)
+        except Exception:
+          continue
+        if message.get("id") == request_id:
+          return message
+      remaining = deadline - time.time()
+      if remaining <= 0:
+        break
+      ready, _, _ = select.select([fd], [], [], min(remaining, 0.25))
+      if not ready:
+        continue
+      chunk = os.read(fd, 65536)
+      if not chunk:
+        break
+      buf += chunk
+  finally:
+    proc._rpc_buf = buf
+  raise TimeoutError(method)
+
+
+upstream.rpc_request = rpc_request
+
+if __name__ == "__main__":
+  upstream.main()

@@ -1,0 +1,87 @@
+{
+  "bar": {
+    "background": "none",
+    "layout": {
+      "center": [
+        {
+          "format": "dd ddd - HH:mm",
+          "formatAlt": "d MMMM 'W'ww yyyy",
+          "id": "omarchy.clock",
+          "verticalFormat": "HH\n—\nmm"
+        }
+      ],
+      "centerBegin": [
+        {
+          "id": "jigark0.indicators"
+        }
+      ],
+      "centerEnd": [
+        {
+          "id": "jigark0.weather"
+        },
+        {
+          "id": "omarchy.system-update"
+        }
+      ],
+      "left": [
+        {
+          "id": "jigark0.workspaces"
+        }
+      ],
+      "right": [
+        {
+          "id": "omarchy.keyboard-layout"
+        },
+        {
+          "id": "jigark0.tray"
+        },
+        {
+          "id": "jigark0.agents"
+        },
+        {
+          "id": "omarchy.bluetooth"
+        },
+        {
+          "id": "omarchy.network"
+        },
+        {
+          "id": "jigark0.audio"
+        },
+        {
+          "id": "jigark0.ram"
+        },
+        {
+          "id": "jigark0.power",
+          "showPercentage": true
+        }
+      ],
+      "tray": []
+    },
+    "position": "top"
+  },
+  "cloneSourceRestores": [
+    "jigark0.nightlight"
+  ],
+  "disabledPlugins": [
+    "omarchy.nightlight"
+  ],
+  "dock": {
+    "pinned": [
+      "org.gnome.Nautilus",
+      "chromium",
+      "foot",
+      "X",
+      "YouTube"
+    ]
+  },
+  "idle": {
+    "lock": 300,
+    "screensaver": 150
+  },
+  "plugins": [
+    {
+      "id": "jigark0.nightlight"
+    }
+  ],
+  "version": 1
+}

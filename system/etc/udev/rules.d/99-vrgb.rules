@@ -1,0 +1,2 @@
+# ASUS Vivobook ITE5570 HID LampArray keyboard controller
+SUBSYSTEM=="hidraw", KERNELS=="0018:0B05:19B6.*", MODE="0660", GROUP="vrgb", TAG+="uaccess"
